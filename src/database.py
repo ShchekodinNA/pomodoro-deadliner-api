@@ -42,16 +42,18 @@ async def async_session_generator():
     )
 
 
-async def get_session():
-    try:
-        async_sesison = await async_session_generator()
-        async with async_sesison() as session:
-            yield session
-    except:
-        await session.rollback()
-        raise
-    finally:
-        await session.close()
+async def get_session() -> AsyncSession:
+    async_session = sessionmaker(
+        engine,
+        class_=AsyncSession,
+        autoflush=True,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+    async with async_session() as session:
+        yield session 
+        await session.commit()
+        
 
 
 class Base(DeclarativeBase):

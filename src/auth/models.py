@@ -9,7 +9,7 @@ class UserRole(Base):
 
     code_name: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
 
-    users: Mapped[List["User"]] = relationship(back_populates="UserRole")
+    users: Mapped[List["User"]] = relationship(back_populates="user_role")
 
 
 class User(Base):
@@ -19,7 +19,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
     hashed_pswd: Mapped[str] = mapped_column()
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
-    user_role_id: Mapped[id] = mapped_column(
+    user_role_id: Mapped[int] = mapped_column(
         ForeignKey(UserRole.id, ondelete="SET NULL"), nullable=True, index=True
     )
-    user_role: Mapped["UserRole"] = relationship(back_populates="User")
+    user_role: Mapped["UserRole"] = relationship(back_populates="users")
