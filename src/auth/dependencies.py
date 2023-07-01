@@ -35,7 +35,7 @@ async def get_current_user(
             raise credentials_exception
     except JWTError as exc:
         raise credentials_exception from exc
-    current_user = await repo.get_user(username=username)
+    current_user = await repo.get_user_schema(username=username)
     return current_user
 
 

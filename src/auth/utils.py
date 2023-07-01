@@ -1,10 +1,11 @@
 from typing import Type, Optional
 from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from src.database import Base
 from .schemas import CreateUserOuter, ReadUser, UpdateUser
 from .models import User
-from .costants import secret_controller
+from .costants import secret_controller, BaseRolesEnum
 from .exceptions import NotAuthenticated
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,8 +34,12 @@ class IAsyncRepo:
         await self._add(object_)
         return read_schema(**object_.__dict__)
 
-    async def _get(self, model: Type[Base], id_: int) -> Base:
+    async def _get(
+        self, model: Type[Base], id_: int, options: Optional[list] = None
+    ) -> Base:
         stmt = select(model).where(model.id == id_)
+        if options is not None:
+            stmt = stmt.options(*options)
         exec_result = await self._execute(stmt)
         db_obj = exec_result.scalar()
         if db_obj is None:
@@ -99,21 +104,43 @@ class AuthenticateRepo(IAsyncRepo):
             db_object.hashed_pswd = secret_controller.hash_secret(upd_user.password)
         return self.get_read_shchema(db_object, ReadUser)
 
-    async def get_user(
+    async def get_user_schema(
         self, id_: Optional[int] = None, username: Optional[str] = None
     ) -> ReadUser:
+        user_db = await self.get_user_obj(id_, username)
+        return self.get_read_shchema(user_db, ReadUser)
+
+    async def get_user_obj(
+        self, id_: Optional[int] = None, username: Optional[str] = None
+    ) -> User:
         if id_ is not None:
-            user_db = await self._get(User, id_)
+            user_db = await self._get(User, id_, [selectinload(User.user_role)])
         elif username is not None:
             user_db = await self.get_user_by_uname(username)
         else:
             raise KeyError("Needed one of arguments present")
-        return self.get_read_shchema(user_db, ReadUser)
+        return user_db
 
     async def get_user_by_uname(self, username: str) -> User:
-        stmt = select(User).where(User.username == username)
+        stmt = (
+            select(User)
+            .where(User.username == username)
+            .options(selectinload(User.user_role))
+        )
         exec_result = await self._execute(stmt)
         db_user = exec_result.scalar()
         if not db_user:
             raise KeyError(f"User with that {username=} isn't found.")
         return db_user
+
+    async def get_user_role(self, user_obj: User) -> BaseRolesEnum:
+        role_obj = user_obj.user_role
+        role = getattr(BaseRolesEnum, role_obj.code_name)
+        return role
+
+    async def get_user_role_by_schema(
+        self, schema: ReadUser | UpdateUser
+    ) -> BaseRolesEnum:
+        user_obj = await self.get_user_obj(schema.id)
+        role = await self.get_user_role(user_obj)
+        return role

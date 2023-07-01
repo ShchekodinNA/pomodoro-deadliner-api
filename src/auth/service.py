@@ -1,4 +1,5 @@
 from .utils import AuthenticateRepo
+from .models import User
 from .exceptions import NotAuthenticated
 from .costants import secret_controller, TOKEN_TYPE
 from .hash_controller import JWTBody, AuthenticationToken

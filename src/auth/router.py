@@ -9,6 +9,7 @@ from .schemas import CreateUserOuter, UpdateUser, ReadUser
 from .utils import AuthenticateRepo
 from .service import Authenticator, AuthenticationToken
 from .exceptions import NotAuthenticated
+from .costants import BaseRolesEnum
 from sqlalchemy import select
 
 auth_router = APIRouter(prefix="/auth", tags=["AUTHORIZATION"])
@@ -40,9 +41,19 @@ async def register_user(
 
 
 @auth_router.delete("/users/{user_id}")
-async def delete_user(user_id: int, repo: AuthenticateRepo = Depends(get_repo)):
-    return await repo.delete_user(user_id)
-
+async def delete_user(
+    user_id: int, 
+    repo: AuthenticateRepo = Depends(get_repo),
+    cur_user: ReadUser = Depends(get_cur_user_if_active)
+    ):
+    role = await repo.get_user_role_by_schema(cur_user)
+    if (
+        role == BaseRolesEnum.ADMIN
+        or role == BaseRolesEnum.SUPERVIZOR
+        or user_id == cur_user.id
+    ):
+        return await repo.delete_user(user_id)
+    raise HTTPException(401)
 
 @auth_router.put("/users/{user_id}")
 async def update_user(
@@ -50,4 +61,11 @@ async def update_user(
     repo: AuthenticateRepo = Depends(get_repo),
     cur_user: ReadUser = Depends(get_cur_user_if_active),
 ):
-    return await repo.update_user(upd_schema)
+    role = await repo.get_user_role_by_schema(cur_user)
+    if (
+        role == BaseRolesEnum.ADMIN
+        or role == BaseRolesEnum.SUPERVIZOR
+        or upd_schema.id == cur_user.id
+    ):
+        return await repo.update_user(upd_schema)
+    raise HTTPException(401)
