@@ -1,10 +1,11 @@
-from typing import Type
+from typing import Type, Optional
 from sqlalchemy import select, delete
 from pydantic import BaseModel
 from src.database import Base
 from .schemas import CreateUserOuter, ReadUser, UpdateUser
 from .models import User
 from .costants import secret_controller
+from .exceptions import NotAuthenticated
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -25,8 +26,10 @@ class IAsyncRepo:
     async def _add(self, object_: Base) -> Base:
         self._session.add(object_)
         await self._session.flush()
-    
-    async def _add_schema_out(self, object_: Base, read_schema: Type[BaseModel]) -> BaseModel:
+
+    async def _add_schema_out(
+        self, object_: Base, read_schema: Type[BaseModel]
+    ) -> BaseModel:
         await self._add(object_)
         return read_schema(**object_.__dict__)
 
@@ -34,14 +37,22 @@ class IAsyncRepo:
         stmt = select(model).where(model.id == id_)
         exec_result = await self._execute(stmt)
         db_obj = exec_result.scalar()
+        if db_obj is None:
+            raise KeyError(f"{model.__name__} with id={id_} isnot found.")
         return db_obj
-    
-    def get_read_shchema(self, db_object: Base, read_schema: Type[BaseModel]) -> BaseModel:
+
+    def get_read_shchema(
+        self, db_object: Base, read_schema: Type[BaseModel]
+    ) -> BaseModel:
         return read_schema(**db_object.__dict__)
-    
+
     async def _update(self, db_object: Base, update_schema: BaseModel) -> Base:
         obj_data = db_object.__dict__
-        schema_data = update_schema.dict(exclude={"id",})
+        schema_data = update_schema.dict(
+            exclude={
+                "id",
+            }
+        )
         table_fields = list(db_object.__table__.columns.keys())
         is_changed = False
         for field in obj_data:
@@ -59,6 +70,14 @@ class IAsyncRepo:
             await self._session.refresh(db_object)
         return db_object
 
+    async def _update_by(
+        self, model: Type[Base], update_schema: Type[BaseModel]
+    ) -> BaseModel:
+        db_object = await self._get(model, update_schema.id)
+        db_object = await self._update(db_object, update_schema)
+        return db_object
+
+
 class AuthenticateRepo(IAsyncRepo):
     async def create_user(self, user: CreateUserOuter) -> ReadUser:
         hashed_password = secret_controller.hash_secret(user.password)
@@ -75,6 +94,26 @@ class AuthenticateRepo(IAsyncRepo):
         return await self._delete(User, id_)
 
     async def update_user(self, upd_user: UpdateUser) -> ReadUser:
-        db_object = await self._get(User, upd_user.id)
-        db_object = await self._update(db_object,upd_user)        
-        return self.get_read_shchema(db_object,ReadUser)
+        db_object: User = await self._update_by(User, upd_user)
+        if upd_user.password is not None:
+            db_object.hashed_pswd = secret_controller.hash_secret(upd_user.password)
+        return self.get_read_shchema(db_object, ReadUser)
+
+    async def get_user(
+        self, id_: Optional[int] = None, username: Optional[str] = None
+    ) -> ReadUser:
+        if id_ is not None:
+            user_db = await self._get(User, id_)
+        elif username is not None:
+            user_db = await self.get_user_by_uname(username)
+        else:
+            raise KeyError("Needed one of arguments present")
+        return self.get_read_shchema(user_db, ReadUser)
+
+    async def get_user_by_uname(self, username: str) -> User:
+        stmt = select(User).where(User.username == username)
+        exec_result = await self._execute(stmt)
+        db_user = exec_result.scalar()
+        if not db_user:
+            raise KeyError(f"User with that {username=} isn't found.")
+        return db_user

@@ -6,7 +6,7 @@ from .hash_controller import SecretController
 TOKEN_TYPE = "Bearer"
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="authorization")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth")
 
 
 class SecurityEnv(BaseSettings):

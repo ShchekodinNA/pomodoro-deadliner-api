@@ -4,19 +4,32 @@ from sqlalchemy import select, delete
 from src.database import AsyncSession
 from src.dependencies import dep_get_async_db_session
 from .models import User
-from .dependencies import get_repo
-from .schemas import CreateUserOuter, UpdateUser
+from .dependencies import get_repo, get_cur_user_if_active
+from .schemas import CreateUserOuter, UpdateUser, ReadUser
 from .utils import AuthenticateRepo
-
+from .service import Authenticator, AuthenticationToken
+from .exceptions import NotAuthenticated
 from sqlalchemy import select
 
 auth_router = APIRouter(prefix="/auth", tags=["AUTHORIZATION"])
-# @auth_router.post("")
-# def authenticate(
-#     form_data: OAuth2PasswordRequestForm = Depends(),
-#     session: AsyncSession = Depends(dep_get_async_db_session),
-# ):
-#     pass
+
+
+@auth_router.post("", response_model=AuthenticationToken)
+async def authenticate(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: AsyncSession = Depends(dep_get_async_db_session),
+):
+    async_auth_repo = AuthenticateRepo(session)
+    authenticator = Authenticator(async_auth_repo)
+    try:
+        token = await authenticator.authenticate_user(
+            form_data.username, form_data.password
+        )
+    except KeyError as er:
+        raise HTTPException(404, er.args)
+    except NotAuthenticated as er:
+        raise HTTPException(401, er.args)
+    return token
 
 
 @auth_router.post("/users")
@@ -25,14 +38,16 @@ async def register_user(
 ):
     return await repo.create_user(new_user)
 
-@auth_router.delete('/users/{user_id}')
-async def delete_user(
-    user_id: int, repo: AuthenticateRepo = Depends(get_repo)
-):
+
+@auth_router.delete("/users/{user_id}")
+async def delete_user(user_id: int, repo: AuthenticateRepo = Depends(get_repo)):
     return await repo.delete_user(user_id)
 
-@auth_router.put('/users/{user_id}')
+
+@auth_router.put("/users/{user_id}")
 async def update_user(
-    upd_schema: UpdateUser, repo: AuthenticateRepo = Depends(get_repo)
+    upd_schema: UpdateUser,
+    repo: AuthenticateRepo = Depends(get_repo),
+    cur_user: ReadUser = Depends(get_cur_user_if_active),
 ):
     return await repo.update_user(upd_schema)

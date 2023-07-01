@@ -2,8 +2,16 @@ from typing import Optional
 from datetime import datetime, timedelta
 from passlib.hash import bcrypt
 from passlib.context import CryptContext
+from pydantic import BaseModel
 from jose import jwt
 
+class JWTBody(BaseModel):
+    sub: str
+    exp: str = datetime.utcnow() + timedelta(minutes=15)
+
+class AuthenticationToken(BaseModel):
+    access_token: str
+    token_type: str
 
 class SecretController:
     def __init__(self, hashing_schema: str, 
@@ -23,13 +31,13 @@ class SecretController:
         return self.pwd_context.verify(peppered_password, hashed_secret)
 
     def generate_jwt_token(
-        self, body: dict, expires_delta: timedelta = timedelta(minutes=15)
+        self, body: JWTBody, expires_delta: timedelta = timedelta(minutes=15)
     ) -> str:
         body_to_encode = body.copy()
         expire = datetime.utcnow() + expires_delta
-        body_to_encode.update({"exp": expire})
+        body_to_encode.exp = expire
         jwt_token = jwt.encode(
-            body_to_encode,
+            body_to_encode.dict(),
             self._jwt_secret,
             algorithm=self._encypting_alg,
         )
