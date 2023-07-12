@@ -1,16 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select, delete
 from src.database import AsyncSession
 from src.dependencies import dep_get_async_db_session
-from .models import User
-from .dependencies import get_repo, get_cur_user_if_active
-from .schemas import CreateUserOuter, UpdateUser, ReadUser
+from .dependencies import get_repo, get_cur_user_if_active, DepActiveCurUser
+from .schemas import CreateUserOuter, UpdateUser, ReadUser, ReadUserInner
 from .utils import AuthenticateRepo
-from .service import Authenticator, AuthenticationToken
+from .service import Authenticator, AuthenticationToken, Authorizator
 from .exceptions import NotAuthenticated
 from .costants import BaseRolesEnum
-from sqlalchemy import select
 
 auth_router = APIRouter(prefix="/auth", tags=["AUTHORIZATION"])
 
@@ -42,30 +39,21 @@ async def register_user(
 
 @auth_router.delete("/users/{user_id}")
 async def delete_user(
-    user_id: int, 
+    user_id: int,
+    cur_user: DepActiveCurUser,
     repo: AuthenticateRepo = Depends(get_repo),
-    cur_user: ReadUser = Depends(get_cur_user_if_active)
-    ):
-    role = await repo.get_user_role_by_schema(cur_user)
-    if (
-        role == BaseRolesEnum.ADMIN
-        or role == BaseRolesEnum.SUPERVIZOR
-        or user_id == cur_user.id
-    ):
+):
+    if Authorizator.can_control(cur_user, user_id):
         return await repo.delete_user(user_id)
     raise HTTPException(401)
+
 
 @auth_router.put("/users/{user_id}")
 async def update_user(
     upd_schema: UpdateUser,
+    cur_user: DepActiveCurUser,
     repo: AuthenticateRepo = Depends(get_repo),
-    cur_user: ReadUser = Depends(get_cur_user_if_active),
 ):
-    role = await repo.get_user_role_by_schema(cur_user)
-    if (
-        role == BaseRolesEnum.ADMIN
-        or role == BaseRolesEnum.SUPERVIZOR
-        or upd_schema.id == cur_user.id
-    ):
+    if Authorizator.can_control(cur_user, upd_schema.id):
         return await repo.update_user(upd_schema)
     raise HTTPException(401)

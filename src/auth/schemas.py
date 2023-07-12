@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, Field
-
+from .costants import BaseRolesEnum
 password_field = Field(max_length=40, min_length=6, default=None)
 username_field = Field(
     regex=r"(?![_.])(?!.*[_.]{2})[a-zA-Z0-9._]+(?<![_.])$", max_length=20, min_length=5, default=None
@@ -22,6 +22,8 @@ class ReadUser(BaseModel):
     is_active: bool
     user_role_id: int
 
+class ReadUserInner(ReadUser):
+    role: BaseRolesEnum
 
 class UpdateUser(BaseModel):
     id: int

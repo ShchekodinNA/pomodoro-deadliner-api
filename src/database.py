@@ -54,7 +54,9 @@ async def get_session() -> AsyncSession:
         yield session 
         await session.commit()
         
-
+# class BaseWithoutID(DeclarativeBase):
+#     pass
 
 class Base(DeclarativeBase):
     id: Mapped[int] = mapped_column(primary_key=True)
+
