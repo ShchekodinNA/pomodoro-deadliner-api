@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.mixins import TimeMixin
 from src.database import Base
 from src.auth.models import User
+from src.pomodoro.models import PomodoroSetting
 
 # M2M_task_to_tag = Table(
 #     "task_2_tag",
@@ -26,10 +27,10 @@ class M2MTask2Tag(Base):
     __tablename__ = "task_to_tag"
     __table_args__ = (UniqueConstraint("task_id", "tag_id"),)
     task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.id"), nullable=False, index=True
+        ForeignKey("task.id", ondelete="CASCADE"), nullable=False, index=True
     )
     tag_id: Mapped[int] = mapped_column(
-        ForeignKey("tag.id"), nullable=False, index=True
+        ForeignKey("tag.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
 
@@ -55,6 +56,9 @@ class Task(Base, TimeMixin):
         nullable=True,
         default=None,
         index=True,
+    )
+    pomodoro_id: Mapped[int] = mapped_column(
+        ForeignKey(PomodoroSetting.id), nullable=True, index=True, default=None
     )
 
     parent_obj: Mapped["Task"] = relationship()

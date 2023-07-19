@@ -1,4 +1,6 @@
 import asyncio
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 from pydantic import BaseSettings
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
@@ -32,8 +34,8 @@ if settings.DEBUG_MODE is True:
     print(f"{async_database_url=}")
 
 
-async def async_session_generator():
-    return await sessionmaker(
+def async_session_generator():
+    return sessionmaker(
         engine,
         class_=AsyncSession,
         autoflush=True,
@@ -43,20 +45,28 @@ async def async_session_generator():
 
 
 async def get_session() -> AsyncSession:
-    async_session = sessionmaker(
-        engine,
-        class_=AsyncSession,
-        autoflush=True,
-        autocommit=False,
-        expire_on_commit=False,
-    )
+    async_session = async_session_generator()
     async with async_session() as session:
-        yield session 
+        yield session
         await session.commit()
-        
+
+
+@asynccontextmanager
+async def get_test_session() -> AsyncSession:
+    async_sesion = async_session_generator()
+    async with async_sesion() as session:
+        try:
+            yield session
+        except Exception as exc:
+            raise Exception() from exc
+        finally:
+            await session.rollback()
+            await session.commit()
+
+
 # class BaseWithoutID(DeclarativeBase):
 #     pass
 
+
 class Base(DeclarativeBase):
     id: Mapped[int] = mapped_column(primary_key=True)
-

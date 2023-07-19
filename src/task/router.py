@@ -8,6 +8,8 @@ from .schemas import (
     CreateTag,
     UpdateTag,
     CreateTag2Task,
+    DeleteTag2TaskOutput,
+    DeleteTag2Task,
 )
 from src.auth import DepActiveCurUser, ReadUserInner, BaseRolesEnum, Authorizator
 
@@ -142,6 +144,30 @@ async def create_tag2task(
             raise HTTPException(401)
 
     return await repo.m2m_with_task(map_schema)
+
+
+@router_m2m_task_2_tag.delete("/task")
+async def delete_tag2task(
+    delete_schema: DeleteTag2Task,
+    repo: DepM2MTaskTagRepo,
+    cur_user: DepActiveCurUser,
+):
+    
+    return await repo.delete_m2m_with_task(delete_schema)
+
+
+@router_m2m_task_2_tag.get("/tasks")
+async def get_tasks_by_tag_id(
+    tag_id: int, repo: DepM2MTaskTagRepo, cur_user: DepActiveCurUser
+):
+    return await repo.get_tasks(tag_id)
+
+
+@router_m2m_task_2_tag.get("/tags")
+async def get_tags_by_task_id(
+    task_id: int, repo: DepM2MTaskTagRepo, cur_user: DepActiveCurUser
+):
+    return await repo.get_tags(task_id)
 
 
 tag_router.include_router(router_m2m_task_2_tag)
