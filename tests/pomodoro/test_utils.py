@@ -69,19 +69,17 @@ async def pomodoro_history() -> AsyncGenerator[PomodoroHistoryTestHolder, None]:
 
         user = await user_manager.get(1)
         base_setting = await setting_repo.create(CreatePomodoroSetting(user_id=user.id))
-        base_history_create_schema=CreatePomodoroHistory(
-                pomodoro_setting_id=base_setting.id
-            )
-        created_record = await history_repo.create(
-                base_history_create_schema
-            )
+        base_history_create_schema = CreatePomodoroHistory(
+            pomodoro_setting_id=base_setting.id
+        )
+        created_record = await history_repo.create(base_history_create_schema)
         result_to_yield = PomodoroHistoryTestHolder(
             session=session,
             repo=history_repo,
             user=user,
             base_setting=base_setting,
             base_history_create_schema=base_history_create_schema,
-            created_record=created_record
+            created_record=created_record,
         )
         yield result_to_yield
 
@@ -138,9 +136,10 @@ class TestHistory:
             empty_history_schema = setting.base_history_create_schema
             new_history = await setting.repo.create(empty_history_schema)
         assert (
-            empty_history_schema.created == new_history.created and
-            empty_history_schema.updated == new_history.updated and
-            empty_history_schema.pomodoro_setting_id == new_history.pomodoro_setting_id
+            empty_history_schema.created == new_history.created
+            and empty_history_schema.updated == new_history.updated
+            and empty_history_schema.pomodoro_setting_id
+            == new_history.pomodoro_setting_id
         )
 
     async def test_read_of_created_record(self):
@@ -152,16 +151,19 @@ class TestHistory:
     async def test_update_record(self):
         async with pomodoro_history() as setting:
             created_record = setting.created_record
-            custom_update = UpdatePomodoroHistory(id=created_record.id)
-            custom_update.created = custom_update.created - timedelta(days=2)
+            custom_update = UpdatePomodoroHistory(
+                id=created_record.id,
+                created=setting.created_record.created - timedelta(days=2),
+                updated=setting.created_record.updated,
+            )
             updated_record = await setting.repo.update(custom_update)
         assert created_record != updated_record
         created_record.created = created_record.created - timedelta(days=2)
         assert created_record == updated_record
-    
+
     async def test_delete_record(self):
         async with pomodoro_history() as setting:
             deleted_result = await setting.repo.delete(setting.created_record.id)
             with pytest.raises(KeyError) as e_info:
                 _ = await setting.repo.read(setting.created_record.id)
-        assert  deleted_result == setting.created_record.id
+        assert deleted_result == setting.created_record.id

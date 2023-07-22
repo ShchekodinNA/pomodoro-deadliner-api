@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.tz import tzutc
 from pydantic import BaseModel, Field
 from sqlalchemy import DateTime
@@ -8,7 +8,7 @@ from sqlalchemy.sql import func
 
 def get_aware_utc_time_now():
     unaware_time = datetime.utcnow()
-    aware_time = unaware_time.replace(tzinfo=tzutc())
+    aware_time = unaware_time.replace(tzinfo=timezone.utc)
     return aware_time
 
 
@@ -22,5 +22,13 @@ class TimeMixin:
 
 
 class TimeMixinForSchema(BaseModel):
-    created: datetime = field_datetime
-    updated: datetime = field_datetime
+    created: datetime | None = None
+    updated: datetime | None = None
+
+    def _init_private_attributes(self) -> None:
+        self.created = (
+            get_aware_utc_time_now() if self.created is None else self.created
+        )
+        self.updated = (
+            get_aware_utc_time_now() if self.updated is None else self.updated
+        )

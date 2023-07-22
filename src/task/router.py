@@ -69,7 +69,7 @@ async def delete_task(
     return await repo.delete(task_id)
 
 
-tag_router = APIRouter(prefix="/tag")
+tag_router = APIRouter(prefix="/tag", tags=["TAG"])
 
 
 @tag_router.post("", response_model=ReadTag)
@@ -125,7 +125,7 @@ async def delete_tag(
     return await repo.delete(tag_id)
 
 
-router_m2m_task_2_tag = APIRouter(prefix="/m2m")
+router_m2m_task_2_tag = APIRouter(prefix="/m2m", tags=["TAG"])
 
 
 @router_m2m_task_2_tag.post("/task", response_model=CreateTag2Task)
@@ -152,7 +152,6 @@ async def delete_tag2task(
     repo: DepM2MTaskTagRepo,
     cur_user: DepActiveCurUser,
 ):
-    
     return await repo.delete_m2m_with_task(delete_schema)
 
 

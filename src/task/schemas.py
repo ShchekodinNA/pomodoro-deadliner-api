@@ -2,7 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
 
-
+# TODO Merge some optional parameters in update and create schemas of task table
 class CreateTask(BaseModel):
     name: str
     description: str = ""
@@ -10,7 +10,7 @@ class CreateTask(BaseModel):
     is_project: bool = False
     user_id: Optional[int] = None
     parent_id: Optional[int] = None
-    pomodoro: Optional[int] = None
+    pomodoro_id: Optional[int] = None
     deadline: Optional[datetime] = None
     finished: Optional[datetime] = None
 

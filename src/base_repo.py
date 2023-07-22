@@ -22,7 +22,12 @@ class IAsyncRepo:
     async def _delete(self, model: Type[Base], object_id: int) -> int:
         stmt = delete(model).where(model.id == object_id).returning(model.id)
         exec_result = await self._delete_by_stmt(stmt)
-        (deleted_id,) = exec_result.one()
+        try:
+            (deleted_id,) = exec_result.one()
+        except exc.NoResultFound as err:
+            raise KeyError(
+                f"Object of table {model.__name__} with id={object_id} isn't found."
+            ) from err
         return deleted_id
 
     async def _delete_by_stmt(
@@ -36,7 +41,7 @@ class IAsyncRepo:
             self._session.add_all(args)
             await self._session.flush()
         except exc.IntegrityError as err:
-            raise KeyError("item(s) not unique") from err
+            raise KeyError("error in one of primary/foreign key(s)") from err
 
     async def _add_schema_out(
         self, object_: Base, read_schema: Type[BaseModel]
@@ -57,7 +62,7 @@ class IAsyncRepo:
         exec_result = await self._execute(stmt)
         db_obj = exec_result.scalar()
         if db_obj is None:
-            raise KeyError(f"{model.__name__} with passed_params isnot found.")
+            raise KeyError(f"{model.__name__} with passed keys isn't found.")
         return db_obj
 
     def get_read_shchema(
