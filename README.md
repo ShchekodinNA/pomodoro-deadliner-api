@@ -1,5 +1,4 @@
 # pomodoro-deadliner-api
-## What is about
 That software helps people to control all they tasks to achive better performance in work and study.
 Also here lies logic to bind tasks with [pomodoros](https://en.wikipedia.org/wiki/Pomodoro_Technique) for understanding amount of time, that needed for finishing tasks.
 ## Installation
@@ -15,5 +14,5 @@ Also here lies logic to bind tasks with [pomodoros](https://en.wikipedia.org/wik
 ```
   $ uvicorn src.main:app --reload
 ```
-Task control.
-App, based on CRUD principle to manipulate tasks and their groups
+## Usage
+To see documentation in development mode (uvicorn) enter to `http://host:port/docs`
